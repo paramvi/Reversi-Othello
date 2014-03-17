@@ -4,8 +4,8 @@ using namespace std;
 #define V 8
 #define black 1
 #define white 2
-#define LIMIT 17
-const float W=.5;
+#define LIMIT 17 // this is the DEPTH upto which computer looks before making the move
+const float W=.5;  // this is the weight of the each of heuristic
 
 vector<vector<int> > board(V,vector<int>(V));
 
@@ -18,6 +18,9 @@ class move
 	move(int x1,int y1){x=x1;y=y1;}
 	
 };
+
+// following are the declarations of the functions used
+
 void initialize();//intialize the board with 0s,1s,2s
 int display();//display the board
 int switch_turn(int);//switches turn b/w black and white
@@ -190,18 +193,28 @@ bool validMoveUtil(int x,int y,string str,int player,int opposite,vector<move>& 
 	
 }
 bool validMove(int x,int y,int player,int opposite,vector<move>& M)
+// this function checks for the valid move
+// and if there is a valid move that move is recorded in the vector 'M' ie. it records all the positions
+// where the discs are to be turned after the move
+// NOTE: 'M' is passed to the function.
 {
 
 	int X,Y;
 	move m;
 	
 	if(   !(x>=0 && x<V && y>=0 && y<V && board[x][y]==0) )
+// here the primary testing is done ie. if the move is already out of the bounds or on the position (x,y)
+// already player is present
 	return false;
 	
 	bool result=false;
 	X=x-1,Y=y;
  	if(   (X>=0 && X<V && Y>=0 && Y<V && board[X][Y]==opposite) )
+ 	// this checks for the bounds and if player just above the (x,y) position is opposite or not
 	if(validMoveUtil(X,Y,"N",player,opposite,M) )
+	// then if the above condition is true, then it calls the 'util' function with the direction
+	// of the move
+	// same for other following conditions
 	result=true;
 	
 	X=x,Y=y-1;
@@ -242,6 +255,7 @@ bool validMove(int x,int y,int player,int opposite,vector<move>& M)
 	return result;		
 }
 int cpuMove(vector<move>& M,char c)
+// this is the function which decides the move for cpu
 {		
     int flag=0;
 	
@@ -287,6 +301,8 @@ int cpuMove(vector<move>& M,char c)
 	return 1;
 }
 void fill_board(vector<move>& m,int player)
+// this function basically makes use of the vector "m", which was populated in "validMove" function
+// to turn the discs
 {
 	vector<move>::iterator it;
 	
@@ -295,6 +311,8 @@ void fill_board(vector<move>& m,int player)
 		board[it->x][it->y]=player;
 	}	
 }
+
+// now follows the heuristics which decide the degree how good the move is?
 
 float disc_count(int player)
 {
@@ -351,10 +369,12 @@ float minmax(int player,int opposite,int level,vector<move>& best,bool value)
 	if(level > LIMIT)		
 	return W*func1(opposite)+(1-W)*func2(opposite);
 	
+	// restore is the current state of the board. It's copy has been made because during this function 
+	// it is changed and needs to be restored
+	// copy is the function of the header file "algorithm". Look for it if you don't understand.
+	
 	vector<vector<int> > restore(V,vector<int>(V));
 	copy(board.begin(),board.end(),restore.begin());
-	
-	//vector<move> best;
 	
 	float max_=-1e15, min_=1e15;
 	int check=0;
@@ -364,24 +384,39 @@ float minmax(int player,int opposite,int level,vector<move>& best,bool value)
 		for(int j=0;j<V;++j)
 		{
 			vector<move> M;
+			// this is vector which records the moves.
 	
 			if( validMove(i,j,player,opposite,M))
+			// here we check if position (i,j) is valid or not?
 			{
 				
 				check=1;
 				M.push_back(move(i,j));
+				// this step is done because during the population of M, every position is 
+				// recorded accept the (i,j).
 				
 				assert(!M.empty());
 				fill_board(M,player);
 
 				float rec=minmax(opposite,player,level+1,best,true);
+				// now the call is made to minmax function again but with the following changes:
+				// level is increased by 1
+				// palyers switched
 
 				if(player == white)
+				// here white is MAX player (analogy to MINIMAX algorithm)
 				{
 					if(max_ <= rec)
 					{
 						max_ = rec;
 						if(!level)
+						// this is done just to avoid reduntant copy's 
+						// we need to record the move just at the immediate lower level
+						// of original call
+						// so there level will be 0
+						// if you don't get this point try to run it one paper
+						// but if even that doesn't help email me and I will try to explain 
+						// you
 						{
 							best.clear();
 						
@@ -391,6 +426,7 @@ float minmax(int player,int opposite,int level,vector<move>& best,bool value)
 					}
 				}
 				else if(player == black)
+				// here BLACK is MIN player in MINIMAX algorithm.
 				{
 					if(min_ >= rec)
 					{
@@ -410,8 +446,11 @@ float minmax(int player,int opposite,int level,vector<move>& best,bool value)
 		}
 	}
 	
-	if(!check) // no valid move
-	// switch the turns
+	if(!check)
+	// this is the case when a player has no move. Then instead of ending the game, turns are switched and 
+	// other player makes the move.
+	// if both of them doesn't have the moves then game end's and player having more discs wins.
+	
 	{
 		if(value == false)		
 		return W*func1(player)+(1-W)*func2(player);
